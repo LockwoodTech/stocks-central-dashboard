@@ -43,8 +43,9 @@ export default function LoginPage() {
       );
       navigate(from, { replace: true });
     } catch (err: unknown) {
-      const resp = (err as { response?: { data?: { message?: string; error?: string; description?: string } } })?.response?.data;
-      const message = resp?.description || resp?.message || resp?.error || 'Invalid credentials. Please try again.';
+      const axiosErr = err as { response?: { data?: { message?: string; error?: string; description?: string }; status?: number }; message?: string };
+      const resp = axiosErr?.response?.data;
+      const message = resp?.error || resp?.description || resp?.message || axiosErr?.message || 'Invalid credentials. Please try again.';
       setError(message);
     } finally {
       setLoading(false);
