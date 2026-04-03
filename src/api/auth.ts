@@ -2,7 +2,7 @@ import apiClient from './client';
 import type { ApiResponse, LoginRequest, LoginResponse, LinkDseRequest, LinkDseResponse } from '@/types';
 
 export async function login(data: LoginRequest): Promise<LoginResponse> {
-  const response = await apiClient.post<ApiResponse<LoginResponse>>('/auth/login', data);
+  const response = await apiClient.post<ApiResponse<LoginResponse>>('/auth/dse-login', data);
   return response.data.data;
 }
 
