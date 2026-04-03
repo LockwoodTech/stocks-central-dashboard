@@ -1,7 +1,8 @@
 /**
  * Format a number as TZS currency.
  */
-export function formatCurrency(value: number): string {
+export function formatCurrency(value: number | undefined | null): string {
+  if (value == null || isNaN(value)) return 'TZS 0';
   return new Intl.NumberFormat('en-TZ', {
     style: 'currency',
     currency: 'TZS',
@@ -13,7 +14,8 @@ export function formatCurrency(value: number): string {
 /**
  * Short currency (e.g. TZS 1.2M, TZS 340K).
  */
-export function formatCurrencyShort(value: number): string {
+export function formatCurrencyShort(value: number | undefined | null): string {
+  if (value == null || isNaN(value)) return 'TZS 0';
   if (Math.abs(value) >= 1_000_000_000) {
     return `TZS ${(value / 1_000_000_000).toFixed(1)}B`;
   }
@@ -29,7 +31,8 @@ export function formatCurrencyShort(value: number): string {
 /**
  * Format a percentage with sign.
  */
-export function formatPercent(value: number): string {
+export function formatPercent(value: number | undefined | null): string {
+  if (value == null || isNaN(value)) return '0.00%';
   const sign = value > 0 ? '+' : '';
   return `${sign}${value.toFixed(2)}%`;
 }
@@ -37,7 +40,8 @@ export function formatPercent(value: number): string {
 /**
  * Abbreviate large volumes (e.g. 1.2M, 340K).
  */
-export function formatVolume(value: number): string {
+export function formatVolume(value: number | undefined | null): string {
+  if (value == null || isNaN(value)) return '0';
   if (Math.abs(value) >= 1_000_000_000) {
     return `${(value / 1_000_000_000).toFixed(1)}B`;
   }
@@ -53,14 +57,16 @@ export function formatVolume(value: number): string {
 /**
  * Format a number with commas.
  */
-export function formatNumber(value: number): string {
+export function formatNumber(value: number | undefined | null): string {
+  if (value == null || isNaN(value)) return '0';
   return new Intl.NumberFormat('en-TZ').format(value);
 }
 
 /**
  * Format a date string to a readable format.
  */
-export function formatDate(dateStr: string): string {
+export function formatDate(dateStr: string | undefined | null): string {
+  if (!dateStr) return '—';
   return new Date(dateStr).toLocaleDateString('en-TZ', {
     year: 'numeric',
     month: 'short',
@@ -71,7 +77,8 @@ export function formatDate(dateStr: string): string {
 /**
  * Format a date string to relative time (e.g. "2 hours ago").
  */
-export function formatRelativeTime(dateStr: string): string {
+export function formatRelativeTime(dateStr: string | undefined | null): string {
+  if (!dateStr) return '—';
   const now = new Date();
   const then = new Date(dateStr);
   const diffMs = now.getTime() - then.getTime();
@@ -89,7 +96,8 @@ export function formatRelativeTime(dateStr: string): string {
 /**
  * Return gain/loss color class.
  */
-export function gainLossColor(value: number): string {
+export function gainLossColor(value: number | undefined | null): string {
+  if (!value) return 'text-gray-500';
   if (value > 0) return 'text-gain';
   if (value < 0) return 'text-loss';
   return 'text-gray-500';
@@ -98,7 +106,8 @@ export function gainLossColor(value: number): string {
 /**
  * Return gain/loss background class.
  */
-export function gainLossBg(value: number): string {
+export function gainLossBg(value: number | undefined | null): string {
+  if (!value) return 'bg-gray-100 text-gray-500';
   if (value > 0) return 'bg-gain-bg text-gain';
   if (value < 0) return 'bg-loss-bg text-loss';
   return 'bg-gray-100 text-gray-500';

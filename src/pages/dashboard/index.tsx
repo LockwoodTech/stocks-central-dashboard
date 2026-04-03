@@ -42,7 +42,8 @@ export default function DashboardPage() {
   const [selectedStock, setSelectedStock] = useState<string | null>(null);
 
   // Featured stock: first holding or first company
-  const featuredTicker = selectedStock || holdings?.[0]?.company?.symbol || companies?.[0]?.company;
+  const firstHoldingSymbol = (holdings as any)?.[0]?.company?.symbol || (holdings as any)?.[0]?.companySymbol;
+  const featuredTicker = selectedStock || firstHoldingSymbol || companies?.[0]?.company;
   const featuredCompany = companies?.find((c) => c.company === featuredTicker);
 
   // Chart data for the featured stock (mock for now, replaced when market-data endpoint is used)
@@ -93,31 +94,35 @@ export default function DashboardPage() {
               <div key={i} className="h-32 w-56 shrink-0 animate-pulse rounded-xl bg-gray-200" />
             ))
           ) : holdings && holdings.length > 0 ? (
-            holdings.slice(0, 8).map((h) => {
-              const sparkData = generateSparkline(h.currentPrice);
-              const isGain = h.gainLossPercent >= 0;
+            holdings.slice(0, 8).map((h: any) => {
+              const symbol = h.company?.symbol || h.companySymbol || '—';
+              const price = h.marketData?.marketPrice || h.marketPrice || h.currentPrice || 0;
+              const changePercent = h.marketData?.percentageChange ?? h.changePercent ?? h.gainLossPercent ?? 0;
+              const shares = h.totalShares || h.shares || 0;
+              const sparkData = generateSparkline(price || 1000);
+              const isGain = changePercent >= 0;
               return (
                 <Link
-                  key={h.company.symbol}
-                  to={`/stock/${h.company.symbol}`}
-                  onClick={() => setSelectedStock(h.company.symbol)}
+                  key={symbol}
+                  to={`/stock/${symbol}`}
+                  onClick={() => setSelectedStock(symbol)}
                   className="group flex w-56 shrink-0 flex-col justify-between rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
                 >
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-semibold text-gray-900">{h.company.symbol}</p>
-                      <p className="text-xs text-gray-500">{h.shares} shares</p>
+                      <p className="text-sm font-semibold text-gray-900">{symbol}</p>
+                      <p className="text-xs text-gray-500">{shares} shares</p>
                     </div>
                     <Badge variant={isGain ? 'gain' : 'loss'}>
                       {isGain ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                      {formatPercent(h.gainLossPercent)}
+                      {formatPercent(changePercent)}
                     </Badge>
                   </div>
                   <div className="my-2 h-10">
                     <ResponsiveContainer width="100%" height="100%">
                       <AreaChart data={sparkData}>
                         <defs>
-                          <linearGradient id={`grad-${h.company.symbol}`} x1="0" y1="0" x2="0" y2="1">
+                          <linearGradient id={`grad-${symbol}`} x1="0" y1="0" x2="0" y2="1">
                             <stop offset="0%" stopColor={isGain ? '#22c55e' : '#ef4444'} stopOpacity={0.3} />
                             <stop offset="100%" stopColor={isGain ? '#22c55e' : '#ef4444'} stopOpacity={0} />
                           </linearGradient>
@@ -126,7 +131,7 @@ export default function DashboardPage() {
                           type="monotone"
                           dataKey="v"
                           stroke={isGain ? '#22c55e' : '#ef4444'}
-                          fill={`url(#grad-${h.company.symbol})`}
+                          fill={`url(#grad-${symbol})`}
                           strokeWidth={1.5}
                           dot={false}
                         />
@@ -134,7 +139,7 @@ export default function DashboardPage() {
                     </ResponsiveContainer>
                   </div>
                   <p className="text-sm font-medium text-gray-900">
-                    {formatCurrency(h.currentPrice)}
+                    {formatCurrency(price)}
                   </p>
                 </Link>
               );
