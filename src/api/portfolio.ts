@@ -3,7 +3,7 @@ import type {
   ApiResponse,
   DseHolding,
   DseOrder,
-  InvestorProfile,
+  DseInvestorProfile,
   ChildAccount,
 } from '@/types';
 
@@ -27,8 +27,8 @@ export async function getDseOrdersBySymbol(symbol: string): Promise<DseOrder[]> 
   return response.data.data ?? [];
 }
 
-export async function getInvestorProfile(): Promise<InvestorProfile> {
-  const response = await apiClient.get<ApiResponse<InvestorProfile>>('/portfolio/investor-profile');
+export async function getInvestorProfile(): Promise<DseInvestorProfile> {
+  const response = await apiClient.get<ApiResponse<DseInvestorProfile>>('/portfolio/investor-profile');
   return response.data.data;
 }
 

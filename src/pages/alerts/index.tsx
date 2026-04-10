@@ -11,7 +11,9 @@ import {
   useCheckAlerts,
 } from '@/hooks/useAlerts';
 import { useCompanies } from '@/hooks/useStocks';
+import { useSmsBalance } from '@/hooks/useSmsCredits';
 import { formatCurrency, formatRelativeTime } from '@/utils/format';
+import { Link } from 'react-router-dom';
 
 export default function AlertsPage() {
   const { data: alerts, isLoading } = useAlerts();
@@ -27,6 +29,7 @@ export default function AlertsPage() {
   const [targetPrice, setTargetPrice] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
 
+  const { data: smsBalance } = useSmsBalance();
   const activeAlerts = alerts?.filter((a) => !a.triggered && a.enabled) ?? [];
   const triggeredAlerts = alerts?.filter((a) => a.triggered) ?? [];
 
@@ -56,6 +59,12 @@ export default function AlertsPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Alerts</h1>
           <p className="text-sm text-gray-500">Get notified when stocks hit your target price</p>
+          <div className="mt-1 flex items-center gap-2 text-sm">
+            <span className="font-medium text-foreground">{smsBalance?.credits ?? 0} SMS credits</span>
+            <Link to="/app/profile#sms-credits" className="text-primary text-xs hover:underline">
+              Top up
+            </Link>
+          </div>
         </div>
         <div className="flex gap-2">
           <Button
@@ -87,7 +96,7 @@ export default function AlertsPage() {
                 value={company}
                 onChange={(e) => setCompany(e.target.value)}
                 required
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
               >
                 <option value="">Select stock</option>
                 {companies?.map((c) => (
@@ -104,7 +113,7 @@ export default function AlertsPage() {
                 <button
                   type="button"
                   onClick={() => setType('buy')}
-                  className={`flex-1 rounded-md py-1.5 text-sm font-medium transition-colors ${
+                  className={`flex-1 rounded-md py-2.5 md:py-1.5 text-sm font-medium transition-colors ${
                     type === 'buy' ? 'bg-gain text-white' : 'text-gray-600'
                   }`}
                 >
@@ -113,7 +122,7 @@ export default function AlertsPage() {
                 <button
                   type="button"
                   onClick={() => setType('sell')}
-                  className={`flex-1 rounded-md py-1.5 text-sm font-medium transition-colors ${
+                  className={`flex-1 rounded-md py-2.5 md:py-1.5 text-sm font-medium transition-colors ${
                     type === 'sell' ? 'bg-loss text-white' : 'text-gray-600'
                   }`}
                 >
@@ -132,7 +141,7 @@ export default function AlertsPage() {
                 min="0"
                 step="0.01"
                 required
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
             </div>
 
@@ -144,7 +153,7 @@ export default function AlertsPage() {
                 onChange={(e) => setPhoneNumber(e.target.value)}
                 placeholder="255XXXXXXXXX"
                 required
-                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+                className="w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 text-sm focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
               />
             </div>
 

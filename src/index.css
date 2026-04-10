@@ -1,20 +1,50 @@
 @import "tailwindcss";
 
 @theme {
-  --color-sidebar: #1a1a2e;
-  --color-sidebar-hover: #16213e;
-  --color-sidebar-active: #0f3460;
+  /* ── Light Mode (default) ── */
+  --color-background: hsl(0 0% 96%);
+  --color-foreground: hsl(0 0% 10%);
+  --color-card: hsl(0 0% 100%);
+  --color-card-border: hsl(0 0% 92%);
+  --color-border: hsl(0 0% 90%);
+  --color-muted: hsl(0 0% 96%);
+  --color-muted-foreground: hsl(0 0% 45%);
+  --color-primary: hsl(220 13% 18%);
+  --color-primary-foreground: hsl(0 0% 98%);
+  --color-sidebar-bg: hsl(220 13% 18%);
+  --color-sidebar-fg: hsl(0 0% 95%);
+  --color-sidebar-hover: hsl(220 15% 25%);
+  --color-sidebar-active: hsl(220 17% 30%);
   --color-gain: #22c55e;
   --color-loss: #ef4444;
   --color-gain-bg: #f0fdf4;
   --color-loss-bg: #fef2f2;
-  --color-primary: #2563eb;
-  --color-primary-hover: #1d4ed8;
   --font-sans: "Inter", "General Sans", ui-sans-serif, system-ui, sans-serif;
 }
 
+/* ── Dark Mode ── */
+.dark {
+  --color-background: hsl(0 0% 7%);
+  --color-foreground: hsl(0 0% 92%);
+  --color-card: hsl(0 0% 12%);
+  --color-card-border: hsl(0 0% 18%);
+  --color-border: hsl(0 0% 20%);
+  --color-muted: hsl(0 0% 15%);
+  --color-muted-foreground: hsl(0 0% 55%);
+  --color-primary: hsl(220 13% 75%);
+  --color-primary-foreground: hsl(0 0% 7%);
+  --color-sidebar-bg: hsl(0 0% 5%);
+  --color-sidebar-fg: hsl(0 0% 90%);
+  --color-sidebar-hover: hsl(0 0% 12%);
+  --color-sidebar-active: hsl(0 0% 18%);
+  --color-gain: #22c55e;
+  --color-loss: #ef4444;
+  --color-gain-bg: hsl(142 76% 10%);
+  --color-loss-bg: hsl(0 72% 12%);
+}
+
 body {
-  @apply bg-gray-50 text-gray-900 antialiased;
+  @apply bg-background text-foreground antialiased;
   margin: 0;
 }
 
@@ -31,9 +61,41 @@ body {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: hsl(0 0% 75%);
   border-radius: 3px;
 }
+.dark ::-webkit-scrollbar-thumb {
+  background: hsl(0 0% 30%);
+}
 ::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: hsl(0 0% 60%);
+}
+
+/* Live ticker animation */
+@keyframes ticker-scroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+.ticker-track {
+  animation: ticker-scroll 30s linear infinite;
+}
+.ticker-track:hover {
+  animation-play-state: paused;
+}
+
+/* Info density modes */
+.density-comfortable {
+  --card-padding: 1.5rem;
+  --table-cell-py: 0.75rem;
+  --text-base-size: 0.9375rem;
+}
+.density-normal {
+  --card-padding: 1rem;
+  --table-cell-py: 0.5rem;
+  --text-base-size: 0.875rem;
+}
+.density-compact {
+  --card-padding: 0.75rem;
+  --table-cell-py: 0.25rem;
+  --text-base-size: 0.8125rem;
 }

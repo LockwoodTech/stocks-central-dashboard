@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { getCompanies, getStockPortfolio, getOrderBook, getMarketData } from '@/api/stocks';
+import { getCompanies, getStockPortfolio, getOrderBook, getMarketData, getMarketMovers } from '@/api/stocks';
 
 export function useCompanies() {
   return useQuery({
@@ -25,11 +25,19 @@ export function useOrderBook(companyId: string) {
   });
 }
 
-export function useMarketData(companyId: string) {
+export function useMarketData(companyId: string, days = 90) {
   return useQuery({
-    queryKey: ['market-data', companyId],
-    queryFn: () => getMarketData(companyId),
+    queryKey: ['market-data', companyId, days],
+    queryFn: () => getMarketData(companyId, days),
     enabled: !!companyId,
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useMarketMovers() {
+  return useQuery({
+    queryKey: ['market-movers'],
+    queryFn: getMarketMovers,
     staleTime: 5 * 60 * 1000,
   });
 }

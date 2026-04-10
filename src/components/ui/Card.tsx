@@ -10,8 +10,8 @@ export default function Card({ children, className, padding = true }: CardProps)
   return (
     <div
       className={clsx(
-        'rounded-xl border border-gray-200 bg-white shadow-sm',
-        padding && 'p-5',
+        'rounded-xl border border-card-border bg-card shadow-sm',
+        padding && 'p-4 md:p-5',
         className,
       )}
     >
@@ -30,7 +30,7 @@ export function CardHeader({ children, className }: { children: React.ReactNode;
 
 export function CardTitle({ children, className }: { children: React.ReactNode; className?: string }) {
   return (
-    <h3 className={clsx('text-base font-semibold text-gray-900', className)}>
+    <h3 className={clsx('text-base font-semibold text-foreground', className)}>
       {children}
     </h3>
   );

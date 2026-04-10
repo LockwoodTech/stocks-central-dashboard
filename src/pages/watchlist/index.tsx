@@ -94,7 +94,7 @@ export default function WatchlistPage() {
             const company = companies?.find((c) => c.company === fav.company);
             return (
               <Card key={fav._id} className="group relative">
-                <Link to={`/stock/${fav.company}`} className="block">
+                <Link to={`/app/stock/${fav.company}`} className="block">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
                       <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-50">

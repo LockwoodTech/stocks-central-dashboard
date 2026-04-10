@@ -11,9 +11,9 @@ interface BadgeProps {
 const variantStyles: Record<BadgeVariant, string> = {
   gain: 'bg-gain-bg text-gain',
   loss: 'bg-loss-bg text-loss',
-  neutral: 'bg-gray-100 text-gray-600',
-  info: 'bg-blue-50 text-blue-700',
-  warning: 'bg-amber-50 text-amber-700',
+  neutral: 'bg-muted text-muted-foreground',
+  info: 'bg-primary/10 text-primary',
+  warning: 'bg-amber-50 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
 };
 
 export default function Badge({ variant = 'neutral', children, className }: BadgeProps) {

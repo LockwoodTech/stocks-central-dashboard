@@ -17,6 +17,10 @@ export default defineConfig({
         target: 'http://localhost:6061',
         changeOrigin: true,
       },
+      '/logos': {
+        target: 'http://localhost:6061',
+        changeOrigin: true,
+      },
     },
   },
 })

@@ -17,7 +17,7 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/';
+  const from = (location.state as { from?: { pathname: string } })?.from?.pathname || '/app/dashboard';
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -61,20 +61,20 @@ export default function LoginPage() {
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
               <TrendingUp className="h-6 w-6" />
             </div>
-            <span className="text-xl font-bold">DSE Tracker</span>
+            <span className="text-xl font-bold">Stocks Central</span>
           </div>
         </div>
 
         <div className="space-y-6">
           <h1 className="text-4xl font-bold leading-tight">
-            Track your DSE
+            Track your
             <br />
-            portfolio in
+            investments in
             <br />
             real-time
           </h1>
           <p className="max-w-sm text-gray-400">
-            Monitor your Dar es Salaam Stock Exchange investments, set price alerts, and make
+            Monitor your stocks, funds, and ETFs. Set price alerts and make
             informed trading decisions with live market data.
           </p>
 
@@ -95,7 +95,7 @@ export default function LoginPage() {
         </div>
 
         <p className="text-sm text-gray-500">
-          &copy; {new Date().getFullYear()} DSE Tracker. All rights reserved.
+          &copy; {new Date().getFullYear()} Stocks Central. All rights reserved.
         </p>
       </div>
 
@@ -107,13 +107,13 @@ export default function LoginPage() {
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
               <TrendingUp className="h-6 w-6 text-white" />
             </div>
-            <span className="text-xl font-bold text-gray-900">DSE Tracker</span>
+            <span className="text-xl font-bold text-gray-900">Stocks Central</span>
           </div>
 
           <div className="mb-8">
             <h2 className="text-2xl font-bold text-gray-900">Welcome back</h2>
             <p className="mt-2 text-sm text-gray-500">
-              Use your DSE account credentials to sign in
+              Sign in to your account
             </p>
           </div>
 
@@ -147,12 +147,12 @@ export default function LoginPage() {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   autoComplete="current-password"
-                  className="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2 pr-10 text-sm transition-colors placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
+                  className="block w-full rounded-lg border border-gray-300 bg-white px-3 py-2.5 pr-10 text-sm transition-colors placeholder:text-gray-400 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/30"
                 />
                 <button
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
-                  className="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600"
+                  className="absolute inset-y-0 right-0 flex items-center p-2 mr-1 text-gray-400 hover:text-gray-600"
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
@@ -164,7 +164,14 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          <p className="mt-6 text-center text-xs text-gray-400">
+          <p className="mt-6 text-center text-sm text-gray-500">
+            Don&apos;t have an account?{' '}
+            <a href="/register" className="font-medium text-primary hover:underline">
+              Create one
+            </a>
+          </p>
+
+          <p className="mt-3 text-center text-xs text-gray-400">
             Your credentials are securely transmitted and never stored in plain text.
           </p>
         </div>

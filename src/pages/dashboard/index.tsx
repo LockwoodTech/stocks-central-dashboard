@@ -17,181 +17,277 @@ import {
 } from 'lucide-react';
 import Card, { CardHeader, CardTitle } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
-import { useDseHoldings } from '@/hooks/usePortfolio';
-import { useCompanies } from '@/hooks/useStocks';
-import { useFavorites } from '@/hooks/useAlerts';
+import { useCompanies, useMarketData, useMarketMovers } from '@/hooks/useStocks';
+import { useFavorites, useAddFavorite, useRemoveFavorite } from '@/hooks/useAlerts';
 import { formatCurrency, formatPercent } from '@/utils/format';
+import { getLogoUrl, handleLogoError } from '@/utils/logo';
+import { useIsMobile } from '@/hooks/useIsMobile';
 
-// Generate a mini sparkline data set from a seed value
-function generateSparkline(base: number, points = 20): { v: number }[] {
-  const data: { v: number }[] = [];
-  let val = base;
-  for (let i = 0; i < points; i++) {
-    val += (Math.random() - 0.48) * base * 0.02;
-    data.push({ v: Math.round(val) });
-  }
-  return data;
-}
+const TIME_RANGES = [
+  { label: '1W', days: 7 },
+  { label: '1M', days: 30 },
+  { label: '3M', days: 90 },
+  { label: '1Y', days: 365 },
+  { label: '2Y', days: 730 },
+];
 
 export default function DashboardPage() {
-  const { data: holdings, isLoading: holdingsLoading } = useDseHoldings();
   const { data: companies, isLoading: companiesLoading } = useCompanies();
   const { data: favorites } = useFavorites();
+  const { data: movers } = useMarketMovers();
+  const addFavorite = useAddFavorite();
+  const removeFavorite = useRemoveFavorite();
 
+  const isMobile = useIsMobile();
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedStock, setSelectedStock] = useState<string | null>(null);
+  const [selectedStock, setSelectedStock] = useState('');
+  const [chartDays, setChartDays] = useState(30);
+  const [sortAsc, setSortAsc] = useState(true);
 
-  // Featured stock: first holding or first company
-  const firstHoldingSymbol = (holdings as any)?.[0]?.company?.symbol || (holdings as any)?.[0]?.companySymbol;
-  const featuredTicker = selectedStock || firstHoldingSymbol || companies?.[0]?.company;
-  const featuredCompany = companies?.find((c) => c.company === featuredTicker);
+  // Chart stock: selected or first company
+  const chartCompany = useMemo(() => {
+    if (selectedStock) return companies?.find((c) => c.company === selectedStock);
+    return companies?.[0];
+  }, [companies, selectedStock]);
 
-  // Chart data for the featured stock (mock for now, replaced when market-data endpoint is used)
+  // Real market data for the selected stock
+  const { data: marketData } = useMarketData(chartCompany?.company_id ?? '', chartDays);
+
+  // Chart data sorted chronologically (old → new)
   const chartData = useMemo(() => {
-    const base = 2000;
-    return Array.from({ length: 30 }, (_, i) => ({
-      date: `Day ${i + 1}`,
-      price: base + Math.sin(i / 3) * 200 + Math.random() * 100,
-    }));
-  }, []);
+    if (!marketData || marketData.length === 0) return [];
+    return [...marketData]
+      .sort((a, b) => new Date(a.trade_date).getTime() - new Date(b.trade_date).getTime())
+      .map((d) => {
+        const date = new Date(d.trade_date);
+        const label = chartDays > 90
+          ? date.toLocaleDateString('en-US', { month: 'short', year: '2-digit' })
+          : date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+        return { date: label, price: d.closing_price };
+      });
+  }, [marketData, chartDays]);
 
-  // Filter companies by search
+  // Filter and sort companies alphabetically
   const filteredCompanies = useMemo(() => {
     if (!companies) return [];
-    if (!searchQuery) return companies;
-    const q = searchQuery.toLowerCase();
-    return companies.filter(
-      (c) =>
-        c.company.toLowerCase().includes(q) || c.fullName.toLowerCase().includes(q),
+    const sorted = [...companies].sort((a, b) =>
+      sortAsc ? a.company.localeCompare(b.company) : b.company.localeCompare(a.company),
     );
-  }, [companies, searchQuery]);
+    if (!searchQuery) return sorted;
+    const q = searchQuery.toLowerCase();
+    return sorted.filter(
+      (c) => c.company.toLowerCase().includes(q) || c.fullName.toLowerCase().includes(q),
+    );
+  }, [companies, searchQuery, sortAsc]);
 
   const favoriteSymbols = useMemo(
     () => new Set(favorites?.map((f) => f.company) ?? []),
     [favorites],
   );
 
+  const handleToggleFavorite = (symbol: string) => {
+    if (favoriteSymbols.has(symbol)) {
+      const fav = favorites?.find((f) => f.company === symbol);
+      if (fav) removeFavorite.mutate(fav._id);
+    } else {
+      addFavorite.mutate(symbol);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {/* Page title */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="text-sm text-gray-500">Welcome back. Here is your market overview.</p>
+        <h1 className="text-2xl font-bold text-foreground">Dashboard</h1>
+        <p className="text-sm text-muted-foreground">Welcome back. Here is your market overview.</p>
       </div>
 
-      {/* My Portfolio - Horizontal Cards */}
-      <section>
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-base font-semibold text-gray-900">My Portfolio</h2>
-          <Link to="/portfolio" className="flex items-center gap-1 text-sm text-primary hover:underline">
-            View all <ChevronRight className="h-4 w-4" />
-          </Link>
-        </div>
-
-        <div className="flex gap-4 overflow-x-auto pb-2">
-          {holdingsLoading ? (
-            Array.from({ length: 4 }).map((_, i) => (
-              <div key={i} className="h-32 w-56 shrink-0 animate-pulse rounded-xl bg-gray-200" />
-            ))
-          ) : holdings && holdings.length > 0 ? (
-            holdings.slice(0, 8).map((h: any) => {
-              const symbol = h.company?.symbol || h.companySymbol || '—';
-              const price = h.marketData?.marketPrice || h.marketPrice || h.currentPrice || 0;
-              const changePercent = h.marketData?.percentageChange ?? h.changePercent ?? h.gainLossPercent ?? 0;
-              const shares = h.totalShares || h.shares || 0;
-              const sparkData = generateSparkline(price || 1000);
-              const isGain = changePercent >= 0;
-              return (
+      {/* Movers / Gainers / Losers */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3">
+        {/* Gainers */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">Top Gainers</CardTitle>
+            <TrendingUp className="h-4 w-4 text-gain" />
+          </CardHeader>
+          <div className="space-y-2">
+            {movers?.gainers?.length ? (
+              movers.gainers.slice(0, isMobile ? 3 : undefined).map((m) => (
                 <Link
-                  key={symbol}
-                  to={`/stock/${symbol}`}
-                  onClick={() => setSelectedStock(symbol)}
-                  className="group flex w-56 shrink-0 flex-col justify-between rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md"
+                  key={m.company}
+                  to={`/app/stock/${m.company}`}
+                  className="flex items-center justify-between rounded-lg px-2 py-1.5 hover:bg-muted"
                 >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-sm font-semibold text-gray-900">{symbol}</p>
-                      <p className="text-xs text-gray-500">{shares} shares</p>
+                  <div className="flex items-center gap-2">
+                    <img
+                      src={getLogoUrl(m.company)}
+                      alt={m.company}
+                      className="h-6 w-6 rounded-full object-cover"
+                      onError={handleLogoError}
+                    />
+                    <div className="hidden h-6 w-6 items-center justify-center rounded-full bg-muted text-[10px] font-bold text-foreground">
+                      {m.company.slice(0, 2)}
                     </div>
-                    <Badge variant={isGain ? 'gain' : 'loss'}>
-                      {isGain ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
-                      {formatPercent(changePercent)}
-                    </Badge>
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{m.company}</p>
+                      <p className="text-xs text-muted-foreground">{formatCurrency(m.closingPrice)}</p>
+                    </div>
                   </div>
-                  <div className="my-2 h-10">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={sparkData}>
-                        <defs>
-                          <linearGradient id={`grad-${symbol}`} x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor={isGain ? '#22c55e' : '#ef4444'} stopOpacity={0.3} />
-                            <stop offset="100%" stopColor={isGain ? '#22c55e' : '#ef4444'} stopOpacity={0} />
-                          </linearGradient>
-                        </defs>
-                        <Area
-                          type="monotone"
-                          dataKey="v"
-                          stroke={isGain ? '#22c55e' : '#ef4444'}
-                          fill={`url(#grad-${symbol})`}
-                          strokeWidth={1.5}
-                          dot={false}
-                        />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </div>
-                  <p className="text-sm font-medium text-gray-900">
-                    {formatCurrency(price)}
-                  </p>
+                  <Badge variant="gain">+{m.changePercent.toFixed(1)}%</Badge>
                 </Link>
-              );
-            })
-          ) : (
-            <Card className="w-full text-center text-sm text-gray-500">
-              <p>No DSE holdings found. Link your DSE account to see your portfolio.</p>
-            </Card>
-          )}
-        </div>
-      </section>
+              ))
+            ) : (
+              <p className="py-2 text-center text-xs text-muted-foreground">No data</p>
+            )}
+          </div>
+        </Card>
+
+        {/* Losers */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">Top Losers</CardTitle>
+            <TrendingDown className="h-4 w-4 text-loss" />
+          </CardHeader>
+          <div className="space-y-2">
+            {movers?.losers?.length ? (
+              movers.losers.slice(0, isMobile ? 3 : undefined).map((m) => (
+                <Link
+                  key={m.company}
+                  to={`/app/stock/${m.company}`}
+                  className="flex items-center justify-between rounded-lg px-2 py-1.5 hover:bg-muted"
+                >
+                  <div className="flex items-center gap-2">
+                    <img
+                      src={getLogoUrl(m.company)}
+                      alt={m.company}
+                      className="h-6 w-6 rounded-full object-cover"
+                      onError={handleLogoError}
+                    />
+                    <div className="hidden h-6 w-6 items-center justify-center rounded-full bg-muted text-[10px] font-bold text-foreground">
+                      {m.company.slice(0, 2)}
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{m.company}</p>
+                      <p className="text-xs text-muted-foreground">{formatCurrency(m.closingPrice)}</p>
+                    </div>
+                  </div>
+                  <Badge variant="loss">{m.changePercent.toFixed(1)}%</Badge>
+                </Link>
+              ))
+            ) : (
+              <p className="py-2 text-center text-xs text-muted-foreground">No data</p>
+            )}
+          </div>
+        </Card>
+
+        {/* Most Active */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">Most Active</CardTitle>
+            <TrendingUp className="h-4 w-4 text-primary" />
+          </CardHeader>
+          <div className="space-y-2">
+            {movers?.mostActive?.length ? (
+              movers.mostActive.slice(0, isMobile ? 3 : undefined).map((m) => (
+                <Link
+                  key={m.company}
+                  to={`/app/stock/${m.company}`}
+                  className="flex items-center justify-between rounded-lg px-2 py-1.5 hover:bg-muted"
+                >
+                  <div className="flex items-center gap-2">
+                    <img
+                      src={getLogoUrl(m.company)}
+                      alt={m.company}
+                      className="h-6 w-6 rounded-full object-cover"
+                      onError={handleLogoError}
+                    />
+                    <div className="hidden h-6 w-6 items-center justify-center rounded-full bg-muted text-[10px] font-bold text-foreground">
+                      {m.company.slice(0, 2)}
+                    </div>
+                    <div>
+                      <p className="text-sm font-medium text-foreground">{m.company}</p>
+                      <p className="text-xs text-muted-foreground">{formatCurrency(m.closingPrice)}</p>
+                    </div>
+                  </div>
+                  <span className="text-xs text-muted-foreground">{m.volume.toLocaleString()} vol</span>
+                </Link>
+              ))
+            ) : (
+              <p className="py-2 text-center text-xs text-muted-foreground">No data</p>
+            )}
+          </div>
+        </Card>
+      </div>
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-        {/* Featured Stock Chart */}
+        {/* Stock Chart with Selector */}
         <div className="xl:col-span-2">
           <Card>
             <CardHeader>
-              <div>
-                <CardTitle>{featuredTicker ?? 'Market'} Price Chart</CardTitle>
-                <p className="text-xs text-gray-500">{featuredCompany?.fullName ?? 'Select a stock to view chart'}</p>
+              <div className="flex items-center gap-3">
+                <select
+                  value={selectedStock || chartCompany?.company || ''}
+                  onChange={(e) => setSelectedStock(e.target.value)}
+                  className="max-w-[180px] md:max-w-none truncate rounded-lg border border-card-border bg-muted px-3 py-2.5 md:py-1.5 text-sm font-semibold text-foreground focus:border-primary focus:outline-none"
+                >
+                  {companies?.map((c) => (
+                    <option key={c._id || c.id || c.company} value={c.company}>
+                      {isMobile ? c.company : `${c.company} — ${c.fullName}`}
+                    </option>
+                  ))}
+                </select>
               </div>
-              <Badge variant="info">30 Days</Badge>
+              <div className="flex gap-1">
+                {TIME_RANGES.map((range) => (
+                  <button
+                    key={range.label}
+                    onClick={() => setChartDays(range.days)}
+                    className={`rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
+                      chartDays === range.days
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted text-muted-foreground hover:bg-border'
+                    }`}
+                  >
+                    {range.label}
+                  </button>
+                ))}
+              </div>
             </CardHeader>
             <div className="h-64">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart data={chartData}>
-                  <defs>
-                    <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#2563eb" stopOpacity={0.2} />
-                      <stop offset="100%" stopColor="#2563eb" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <XAxis dataKey="date" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
-                  <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} width={60} />
-                  <Tooltip
-                    contentStyle={{
-                      background: '#fff',
-                      border: '1px solid #e5e7eb',
-                      borderRadius: '8px',
-                      fontSize: '12px',
-                    }}
-                  />
-                  <Area
-                    type="monotone"
-                    dataKey="price"
-                    stroke="#2563eb"
-                    fill="url(#chartGradient)"
-                    strokeWidth={2}
-                    dot={false}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
+              {chartData.length > 0 ? (
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={chartData}>
+                    <defs>
+                      <linearGradient id="chartGradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#2563eb" stopOpacity={0.2} />
+                        <stop offset="100%" stopColor="#2563eb" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <XAxis dataKey="date" tick={{ fontSize: 11 }} tickLine={false} axisLine={false} />
+                    <YAxis tick={{ fontSize: 11 }} tickLine={false} axisLine={false} width={60} />
+                    <Tooltip
+                      contentStyle={{
+                        background: 'hsl(var(--color-card))',
+                        border: '1px solid hsl(var(--color-card-border))',
+                        borderRadius: '8px',
+                        fontSize: '12px',
+                      }}
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="price"
+                      stroke="#2563eb"
+                      fill="url(#chartGradient)"
+                      strokeWidth={2}
+                      dot={false}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              ) : (
+                <div className="flex h-full items-center justify-center text-sm text-muted-foreground">
+                  Select a stock to view price chart
+                </div>
+              )}
             </div>
           </Card>
         </div>
@@ -200,7 +296,7 @@ export default function DashboardPage() {
         <Card>
           <CardHeader>
             <CardTitle>My Watchlist</CardTitle>
-            <Link to="/watchlist" className="text-sm text-primary hover:underline">
+            <Link to="/app/watchlist" className="text-sm text-primary hover:underline">
               View all
             </Link>
           </CardHeader>
@@ -212,23 +308,23 @@ export default function DashboardPage() {
                   <Link
                     key={fav._id}
                     to={`/stock/${fav.company}`}
-                    className="flex items-center justify-between rounded-lg px-2 py-2 hover:bg-gray-50"
+                    className="flex items-center justify-between rounded-lg px-2 py-2 hover:bg-muted"
                   >
                     <div className="flex items-center gap-3">
                       <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
                       <div>
-                        <p className="text-sm font-medium text-gray-900">{fav.company}</p>
-                        <p className="text-xs text-gray-500">
+                        <p className="text-sm font-medium text-foreground">{fav.company}</p>
+                        <p className="text-xs text-muted-foreground">
                           {company?.fullName ?? 'Loading...'}
                         </p>
                       </div>
                     </div>
-                    <ChevronRight className="h-4 w-4 text-gray-400" />
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
                   </Link>
                 );
               })
             ) : (
-              <p className="py-4 text-center text-sm text-gray-500">
+              <p className="py-4 text-center text-sm text-muted-foreground">
                 No stocks in your watchlist yet.
               </p>
             )}
@@ -241,68 +337,91 @@ export default function DashboardPage() {
         <CardHeader>
           <CardTitle>All Stocks</CardTitle>
           <div className="relative w-64">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <input
               type="text"
               placeholder="Search stocks..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded-lg border border-gray-200 bg-gray-50 py-1.5 pl-9 pr-3 text-sm placeholder:text-gray-400 focus:border-primary focus:outline-none"
+              className="w-full rounded-lg border border-card-border bg-muted py-2.5 md:py-1.5 pl-9 pr-3 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:outline-none"
             />
           </div>
         </CardHeader>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-sm">
             <thead>
-              <tr className="border-b border-gray-100">
-                <th className="pb-3 pl-2 font-medium text-gray-500">Stock</th>
-                <th className="pb-3 font-medium text-gray-500">Sector</th>
-                <th className="pb-3 text-right font-medium text-gray-500">Country</th>
-                <th className="pb-3 pr-2 text-right font-medium text-gray-500">Watchlist</th>
+              <tr className="border-b border-border">
+                <th className="pb-3 pl-2 font-medium text-muted-foreground">
+                  <button
+                    onClick={() => setSortAsc((v) => !v)}
+                    className="flex items-center gap-1 hover:text-foreground transition-colors"
+                  >
+                    Stock {sortAsc ? '↑' : '↓'}
+                  </button>
+                </th>
+                <th className="pb-3 font-medium text-muted-foreground">Sector</th>
+                <th className="pb-3 text-right font-medium text-muted-foreground">Country</th>
+                <th className="pb-3 pr-2 text-right font-medium text-muted-foreground">Watchlist</th>
               </tr>
             </thead>
             <tbody>
               {companiesLoading ? (
                 Array.from({ length: 5 }).map((_, i) => (
-                  <tr key={i} className="border-b border-gray-50">
+                  <tr key={i} className="border-b border-border/50">
                     <td className="py-3 pl-2">
-                      <div className="h-4 w-24 animate-pulse rounded bg-gray-200" />
+                      <div className="h-4 w-24 animate-pulse rounded bg-muted" />
                     </td>
-                    <td className="py-3"><div className="h-4 w-16 animate-pulse rounded bg-gray-200" /></td>
-                    <td className="py-3"><div className="h-4 w-16 animate-pulse rounded bg-gray-200" /></td>
-                    <td className="py-3"><div className="h-4 w-8 animate-pulse rounded bg-gray-200" /></td>
+                    <td className="py-3"><div className="h-4 w-16 animate-pulse rounded bg-muted" /></td>
+                    <td className="py-3"><div className="h-4 w-16 animate-pulse rounded bg-muted" /></td>
+                    <td className="py-3"><div className="h-4 w-8 animate-pulse rounded bg-muted" /></td>
                   </tr>
                 ))
               ) : filteredCompanies.length > 0 ? (
                 filteredCompanies.map((c) => (
-                  <tr key={c._id} className="border-b border-gray-50 hover:bg-gray-50">
+                  <tr key={c._id || c.id || c.company} className="border-b border-border/50 hover:bg-muted/50">
                     <td className="py-3 pl-2">
-                      <Link to={`/stock/${c.company}`} className="group flex items-center gap-3">
-                        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-gray-100 text-xs font-bold text-gray-700">
+                      <Link to={`/app/stock/${c.company}`} className="group flex items-center gap-3">
+                        <img
+                          src={getLogoUrl(c.company, c.logo)}
+                          alt={c.company}
+                          className="h-8 w-8 rounded-lg object-cover"
+                          onError={handleLogoError}
+                        />
+                        <div
+                          className="hidden h-8 w-8 items-center justify-center rounded-lg bg-muted text-xs font-bold text-foreground"
+                        >
                           {c.company.slice(0, 2)}
                         </div>
                         <div>
-                          <p className="font-medium text-gray-900 group-hover:text-primary">
+                          <p className="font-medium text-foreground group-hover:text-primary">
                             {c.company}
                           </p>
-                          <p className="text-xs text-gray-500">{c.fullName}</p>
+                          <p className="text-xs text-muted-foreground">{c.fullName}</p>
                         </div>
                       </Link>
                     </td>
-                    <td className="py-3 text-gray-600">{c.marketSegment ?? '--'}</td>
-                    <td className="py-3 text-right text-gray-600">{c.country}</td>
+                    <td className="py-3 text-muted-foreground">{c.marketSegment ?? '--'}</td>
+                    <td className="py-3 text-right text-muted-foreground">{c.country}</td>
                     <td className="py-3 pr-2 text-right">
-                      {favoriteSymbols.has(c.company) ? (
-                        <Star className="ml-auto h-4 w-4 fill-amber-400 text-amber-400" />
-                      ) : (
-                        <Star className="ml-auto h-4 w-4 text-gray-300" />
-                      )}
+                      <button
+                        onClick={(e) => {
+                          e.preventDefault();
+                          handleToggleFavorite(c.company);
+                        }}
+                        className="ml-auto rounded-full p-1 transition-colors hover:bg-muted"
+                      >
+                        {favoriteSymbols.has(c.company) ? (
+                          <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
+                        ) : (
+                          <Star className="h-4 w-4 text-muted-foreground hover:text-amber-400" />
+                        )}
+                      </button>
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={4} className="py-8 text-center text-gray-500">
+                  <td colSpan={4} className="py-8 text-center text-muted-foreground">
                     No stocks found.
                   </td>
                 </tr>
