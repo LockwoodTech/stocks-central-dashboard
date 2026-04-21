@@ -540,7 +540,7 @@ export default function PortfolioAnalytics({
               dataKey="value"
               nameKey="name"
               paddingAngle={4}
-              label={({ name, pct }) => `${name} ${pct}%`}
+              label={({ name, percent }) => `${name} ${((percent ?? 0) * 100).toFixed(0)}%`}
             >
               <Cell fill="#2563eb" />
               <Cell fill="#22c55e" />

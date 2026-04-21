@@ -18,7 +18,6 @@ import {
   ChevronRight,
   ChevronDown,
   Loader2,
-  RefreshCw,
   Trash2,
   Target,
 } from 'lucide-react';
@@ -67,7 +66,7 @@ export default function PortfolioPage() {
   const { data: manualPortfolio } = useStockPortfolio();
   const { data: companies } = useCompanies();
   const { data: fundPortfolio, isLoading: fundsLoading } = useFundPortfolio();
-  const { data: funds } = useFunds();
+  useFunds();
   const { data: transactions, isLoading: txLoading } = useTransactions();
   const { data: goals, isLoading: goalsLoading } = useGoals();
   const deleteTx = useDeleteTransaction();
@@ -768,7 +767,7 @@ export default function PortfolioPage() {
                   <XAxis dataKey="date" tick={{ fontSize: 11 }} stroke="hsl(0 0% 45%)" />
                   <YAxis tick={{ fontSize: 11 }} stroke="hsl(0 0% 45%)" tickFormatter={(v) => `${(v / 1_000_000).toFixed(1)}M`} />
                   <Tooltip
-                    formatter={(value: number) => [formatCurrency(value), 'Total Invested']}
+                    formatter={(value) => [formatCurrency(Number(value)), 'Total Invested']}
                     contentStyle={{
                       background: 'var(--color-card)',
                       border: '1px solid var(--color-card-border)',

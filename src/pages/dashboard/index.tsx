@@ -19,7 +19,7 @@ import Card, { CardHeader, CardTitle } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import { useCompanies, useMarketData, useMarketMovers } from '@/hooks/useStocks';
 import { useFavorites, useAddFavorite, useRemoveFavorite } from '@/hooks/useAlerts';
-import { formatCurrency, formatPercent } from '@/utils/format';
+import { formatCurrency } from '@/utils/format';
 import { getLogoUrl, handleLogoError } from '@/utils/logo';
 import { useIsMobile } from '@/hooks/useIsMobile';
 

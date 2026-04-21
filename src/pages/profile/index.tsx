@@ -20,7 +20,6 @@ import {
   Gift,
   Copy,
   Share2,
-  Users,
 } from 'lucide-react';
 import Card, { CardHeader, CardTitle } from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
