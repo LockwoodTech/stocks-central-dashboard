@@ -34,7 +34,12 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      const data = await register({ full_name: fullName, email, password, phoneNumber, role: 'USER', category: 'Other', country: 'Tanzania', ...(refCode ? { referredBy: refCode } : {}) });
+      // Normalize phone: strip +, convert 0-prefix to 255
+      let normalizedPhone = phoneNumber.replace(/[\s\-]/g, '');
+      if (normalizedPhone.startsWith('+')) normalizedPhone = normalizedPhone.slice(1);
+      if (normalizedPhone.startsWith('0') && normalizedPhone.length === 10) normalizedPhone = '255' + normalizedPhone.slice(1);
+
+      const data = await register({ full_name: fullName, email, password, phoneNumber: normalizedPhone, role: 'USER', category: 'Other', country: 'Tanzania', ...(refCode ? { referredBy: refCode } : {}) });
       setAuth(
         {
           _id: data._id,
@@ -172,7 +177,7 @@ export default function RegisterPage() {
             <Input
               label="Phone Number"
               type="tel"
-              placeholder="255XXXXXXXXX"
+              placeholder="255655128012 or 0655128012"
               value={phoneNumber}
               onChange={(e) => setPhoneNumber(e.target.value)}
               required
