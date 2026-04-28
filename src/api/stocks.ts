@@ -7,6 +7,7 @@ import type {
   CompanyOrderBook,
   CompanyMarket,
   MarketMovers,
+  LivePrice,
 } from '@/types';
 
 export async function getCompanies(): Promise<CompanyProfile[]> {
@@ -40,4 +41,9 @@ export async function getMarketData(companyId: string, days = 90): Promise<Compa
 export async function getMarketMovers(): Promise<MarketMovers> {
   const response = await apiClient.get<ApiResponse<MarketMovers>>('/market-data/movers');
   return response.data.data ?? { gainers: [], losers: [], mostActive: [] };
+}
+
+export async function getLivePrices(): Promise<LivePrice[]> {
+  const response = await apiClient.get<ApiResponse<LivePrice[]>>('/live-prices');
+  return response.data.data ?? [];
 }

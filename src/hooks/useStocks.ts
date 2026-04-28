@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { getCompanies, getStockPortfolio, getOrderBook, getMarketData, getMarketMovers } from '@/api/stocks';
+import { getCompanies, getStockPortfolio, getOrderBook, getMarketData, getMarketMovers, getLivePrices } from '@/api/stocks';
 
 export function useCompanies() {
   return useQuery({
@@ -39,5 +39,14 @@ export function useMarketMovers() {
     queryKey: ['market-movers'],
     queryFn: getMarketMovers,
     staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useLivePrices() {
+  return useQuery({
+    queryKey: ['live-prices'],
+    queryFn: getLivePrices,
+    staleTime: 60_000,
+    refetchInterval: 60_000,
   });
 }

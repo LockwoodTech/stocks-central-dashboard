@@ -19,7 +19,7 @@ import {
 import Card, { CardHeader, CardTitle } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
-import { useCompanies, useOrderBook, useMarketData } from '@/hooks/useStocks';
+import { useCompanies, useOrderBook, useMarketData, useLivePrices } from '@/hooks/useStocks';
 import { useDseHoldingBySymbol, useDseOrdersBySymbol } from '@/hooks/usePortfolio';
 import { useFavorites, useAddFavorite, useRemoveFavorite } from '@/hooks/useAlerts';
 import {
@@ -43,6 +43,7 @@ export default function StockDetailPage() {
   const { data: orders } = useDseOrdersBySymbol(symbol);
   const { data: orderBook } = useOrderBook(companyId);
   const { data: marketDataRaw } = useMarketData(companyId);
+  const { data: livePrices } = useLivePrices();
   const { data: favorites } = useFavorites();
   const addFavorite = useAddFavorite();
   const removeFavorite = useRemoveFavorite();
@@ -57,31 +58,37 @@ export default function StockDetailPage() {
     }
   };
 
-  // Price history chart data
+  // Live price entry for this symbol (real-time source)
+  const liveEntry = livePrices?.find((l) => l.company === symbol);
+
+  // Price history chart data — API returns newest-first; reverse to oldest→newest for chart
   const chartData = useMemo(() => {
     if (marketDataRaw && marketDataRaw.length > 0) {
-      return marketDataRaw
-        .slice(-90)
+      return [...marketDataRaw]
+        .slice(0, 90)
+        .reverse()
         .map((d) => ({
           date: new Date(d.trade_date).toLocaleDateString('en', { month: 'short', day: 'numeric' }),
           price: d.closing_price,
           volume: d.volume,
         }));
     }
-    // Fallback mock data
-    const base = 2000;
-    return Array.from({ length: 90 }, (_, i) => ({
-      date: `${Math.floor(i / 30) + 1}/${(i % 30) + 1}`,
-      price: base + Math.sin(i / 5) * 300 + Math.random() * 100,
-      volume: Math.floor(Math.random() * 50000),
-    }));
+    return [];
   }, [marketDataRaw]);
 
-  const latestPrice = chartData[chartData.length - 1]?.price ?? 0;
-  const previousPrice = chartData[chartData.length - 2]?.price ?? latestPrice;
-  const priceChange = latestPrice - previousPrice;
-  const priceChangePercent = previousPrice > 0 ? (priceChange / previousPrice) * 100 : 0;
+  // Latest historical close (rightmost chart point after reversal)
+  const latestHistoricalClose = chartData[chartData.length - 1]?.price ?? 0;
+
+  // Use LivePrice as the primary current price; fall back to latest historical close
+  const latestPrice = liveEntry?.price ?? latestHistoricalClose;
+  const priceChange = liveEntry?.change ?? (latestPrice - (chartData[chartData.length - 2]?.price ?? latestPrice));
+  const priceChangePercent = liveEntry?.changePercent ?? (latestHistoricalClose > 0 ? (priceChange / latestHistoricalClose) * 100 : 0);
   const isGain = priceChange >= 0;
+
+  // Staleness indicator for order book
+  const orderBookAge = orderBook?.sync_timestamp
+    ? Math.round((Date.now() - new Date(orderBook.sync_timestamp).getTime()) / 60000)
+    : null;
 
   return (
     <div className="space-y-6">
@@ -215,8 +222,8 @@ export default function StockDetailPage() {
           {orderBook?.orders && orderBook.orders.length > 0 ? (
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-2 text-xs text-gray-500">
-                <span>Best Buy: {formatCurrency(orderBook.bestBuyPrice)}</span>
-                <span className="text-right">Best Sell: {formatCurrency(orderBook.bestSellPrice)}</span>
+                <span>Best Buy: {orderBook.bestBuyPrice > 0 ? formatCurrency(orderBook.bestBuyPrice) : '--'}</span>
+                <span className="text-right">Best Sell: {orderBook.bestSellPrice > 0 ? formatCurrency(orderBook.bestSellPrice) : '--'}</span>
               </div>
 
               <div className="overflow-hidden rounded-lg border border-gray-100">
@@ -249,6 +256,12 @@ export default function StockDetailPage() {
                   </tbody>
                 </table>
               </div>
+
+              {orderBookAge !== null && (
+                <p className="text-right text-xs text-gray-400">
+                  Updated {orderBookAge < 1 ? 'just now' : `${orderBookAge}m ago`}
+                </p>
+              )}
             </div>
           ) : (
             <p className="py-8 text-center text-sm text-gray-500">
