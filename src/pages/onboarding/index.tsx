@@ -219,18 +219,14 @@ export default function OnboardingPage() {
 
     try {
       await updateInvestorProfile(profile);
-      setInvestorProfile(profile);
-      setShowDseLink(true); // Show DSE linking step
-    } catch (err: unknown) {
-      const axiosErr = err as {
-        response?: { data?: { message?: string; error?: string; description?: string } };
-        message?: string;
-      };
-      const resp = axiosErr?.response?.data;
-      setError(resp?.error || resp?.description || resp?.message || axiosErr?.message || 'Something went wrong.');
-    } finally {
-      setLoading(false);
+    } catch {
+      // Profile update failed (e.g. stale token) — not a blocker.
+      // Investor profile can be set later from the profile page.
     }
+    // Always advance to the DSE linking step regardless of profile save outcome.
+    setInvestorProfile(profile);
+    setShowDseLink(true);
+    setLoading(false);
   };
 
   const goToDashboard = () => navigate('/app/dashboard', { replace: true });
