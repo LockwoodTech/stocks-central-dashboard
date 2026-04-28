@@ -35,12 +35,15 @@ export default function AlertsPage() {
 
   const handleCreate = (e: FormEvent) => {
     e.preventDefault();
+    let normalizedPhone = phoneNumber.replace(/[\s\-]/g, '');
+    if (normalizedPhone.startsWith('+')) normalizedPhone = normalizedPhone.slice(1);
+    if (normalizedPhone.startsWith('0') && normalizedPhone.length === 10) normalizedPhone = '255' + normalizedPhone.slice(1);
     createAlert.mutate(
       {
         company,
         type,
         targetPrice: parseFloat(targetPrice),
-        phoneNumber,
+        phoneNumber: normalizedPhone,
       },
       {
         onSuccess: () => {

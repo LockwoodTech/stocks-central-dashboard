@@ -25,7 +25,15 @@ export default function LoginPage() {
     setLoading(true);
 
     try {
-      const data = await login({ payload, password });
+      // Normalize if payload looks like a phone number (starts with digit/+ and has no @ or .)
+      let normalizedPayload = payload.trim();
+      const looksLikePhone = /^[+0]/.test(normalizedPayload) && !normalizedPayload.includes('@') && !normalizedPayload.includes('.');
+      if (looksLikePhone) {
+        normalizedPayload = normalizedPayload.replace(/[\s\-]/g, '');
+        if (normalizedPayload.startsWith('+')) normalizedPayload = normalizedPayload.slice(1);
+        if (normalizedPayload.startsWith('0') && normalizedPayload.length === 10) normalizedPayload = '255' + normalizedPayload.slice(1);
+      }
+      const data = await login({ payload: normalizedPayload, password });
       setAuth(
         {
           _id: data._id,

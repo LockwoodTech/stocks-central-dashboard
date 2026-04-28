@@ -97,8 +97,11 @@ export default function ProfilePage() {
     setInfoLoading(true);
     setInfoSuccess(false);
     try {
-      await updatePersonalInfo({ full_name: fullName, email, phoneNumber });
-      updateUser({ full_name: fullName, email, phoneNumber });
+      let normalizedPhone = phoneNumber.replace(/[\s\-]/g, '');
+      if (normalizedPhone.startsWith('+')) normalizedPhone = normalizedPhone.slice(1);
+      if (normalizedPhone.startsWith('0') && normalizedPhone.length === 10) normalizedPhone = '255' + normalizedPhone.slice(1);
+      await updatePersonalInfo({ full_name: fullName, email, phoneNumber: normalizedPhone });
+      updateUser({ full_name: fullName, email, phoneNumber: normalizedPhone });
       setInfoSuccess(true);
       setEditingInfo(false);
       setTimeout(() => setInfoSuccess(false), 3000);
