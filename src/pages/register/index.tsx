@@ -34,7 +34,7 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      const data = await register({ full_name: fullName, email, password, phoneNumber, ...(refCode ? { referredBy: refCode } : {}) });
+      const data = await register({ full_name: fullName, email, password, phoneNumber, role: 'USER', category: 'Other', country: 'Tanzania', ...(refCode ? { referredBy: refCode } : {}) });
       setAuth(
         {
           _id: data._id,

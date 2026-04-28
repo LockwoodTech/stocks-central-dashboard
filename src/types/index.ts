@@ -520,6 +520,9 @@ export interface RegisterRequest {
   email: string;
   password: string;
   phoneNumber: string;
+  role: string;
+  category: string;
+  country: string;
   referredBy?: string;
 }
 
