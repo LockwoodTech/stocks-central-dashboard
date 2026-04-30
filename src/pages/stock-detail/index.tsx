@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
   AreaChart,
   Area,
@@ -15,6 +15,7 @@ import {
   TrendingDown,
   BarChart3,
   Activity,
+  GitCompare,
 } from 'lucide-react';
 import Card, { CardHeader, CardTitle } from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
@@ -29,6 +30,188 @@ import {
   formatNumber,
   formatDate,
 } from '@/utils/format';
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/*  Peer Comparison helper                                                    */
+/* ─────────────────────────────────────────────────────────────────────────── */
+
+interface PeerRow {
+  symbol: string;
+  fullName: string;
+  price: number;
+  change: number;
+  changePercent: number;
+  volume: number;
+}
+
+function PeerComparisonCard({
+  currentSymbol,
+  currentSector,
+}: {
+  currentSymbol: string;
+  currentSector: string | undefined;
+}) {
+  const { data: companies } = useCompanies();
+  const { data: livePrices } = useLivePrices();
+
+  const peers = useMemo<PeerRow[]>(() => {
+    if (!companies || !livePrices) return [];
+
+    const priceMap = new Map<
+      string,
+      { price: number; change: number; changePercent: number }
+    >();
+    livePrices.forEach((lp) => {
+      priceMap.set(lp.company, {
+        price: lp.price,
+        change: lp.change,
+        changePercent: lp.changePercent,
+      });
+    });
+
+    // Build candidates: same sector first, excluding current symbol
+    const sameSector = companies.filter(
+      (c) =>
+        c.company !== currentSymbol &&
+        currentSector &&
+        c.marketSegment === currentSector,
+    );
+
+    const others = companies.filter(
+      (c) => c.company !== currentSymbol && c.marketSegment !== currentSector,
+    );
+
+    // Prefer up to 4 from same sector, fill remainder from others
+    const candidates = [...sameSector, ...others].slice(0, 4);
+
+    return candidates.map((c) => {
+      const lp = priceMap.get(c.company);
+      return {
+        symbol: c.company,
+        fullName: c.fullName,
+        price: lp?.price ?? 0,
+        change: lp?.change ?? 0,
+        changePercent: lp?.changePercent ?? 0,
+        volume: 0,
+      };
+    });
+  }, [companies, livePrices, currentSymbol, currentSector]);
+
+  // Also include the current stock for comparison
+  const currentLive = livePrices?.find((lp) => lp.company === currentSymbol);
+  const currentCompany = companies?.find((c) => c.company === currentSymbol);
+
+  const allRows: PeerRow[] = useMemo(() => {
+    if (!currentCompany) return peers;
+    const currentRow: PeerRow = {
+      symbol: currentSymbol,
+      fullName: currentCompany.fullName,
+      price: currentLive?.price ?? 0,
+      change: currentLive?.change ?? 0,
+      changePercent: currentLive?.changePercent ?? 0,
+      volume: 0,
+    };
+    return [currentRow, ...peers];
+  }, [currentCompany, currentSymbol, currentLive, peers]);
+
+  if (allRows.length <= 1) return null;
+
+  return (
+    <Card>
+      <CardHeader>
+        <div className="flex items-center gap-2">
+          <GitCompare className="h-4 w-4 text-muted-foreground" />
+          <CardTitle>Compare with Peers</CardTitle>
+        </div>
+        {currentSector && (
+          <Badge variant="neutral">{currentSector}</Badge>
+        )}
+      </CardHeader>
+      <div className="overflow-x-auto">
+        <table className="w-full text-left text-sm">
+          <thead>
+            <tr className="border-b border-border">
+              <th className="pb-3 font-medium text-muted-foreground">Symbol</th>
+              <th className="hidden pb-3 font-medium text-muted-foreground sm:table-cell">
+                Company
+              </th>
+              <th className="pb-3 text-right font-medium text-muted-foreground">Price</th>
+              <th className="pb-3 text-right font-medium text-muted-foreground">Change</th>
+              <th className="pb-3 pr-2 text-right font-medium text-muted-foreground">Change %</th>
+            </tr>
+          </thead>
+          <tbody>
+            {allRows.map((row) => {
+              const isCurrent = row.symbol === currentSymbol;
+              const isGain = row.changePercent >= 0;
+              return (
+                <tr
+                  key={row.symbol}
+                  className={`border-b border-border/50 ${
+                    isCurrent
+                      ? 'bg-primary/5 font-semibold'
+                      : 'hover:bg-muted/50'
+                  }`}
+                >
+                  <td className="py-3">
+                    <Link
+                      to={`/app/stock/${row.symbol}`}
+                      className={`font-medium ${
+                        isCurrent
+                          ? 'text-primary'
+                          : 'text-foreground hover:text-primary'
+                      }`}
+                    >
+                      {row.symbol}
+                      {isCurrent && (
+                        <span className="ml-1.5 text-xs font-normal text-muted-foreground">
+                          (current)
+                        </span>
+                      )}
+                    </Link>
+                  </td>
+                  <td className="hidden py-3 text-muted-foreground sm:table-cell">
+                    <span className="truncate max-w-[200px] block">{row.fullName}</span>
+                  </td>
+                  <td className="py-3 text-right text-foreground">
+                    {row.price > 0 ? formatCurrency(row.price) : '--'}
+                  </td>
+                  <td
+                    className={`py-3 text-right ${
+                      isGain ? 'text-gain' : 'text-loss'
+                    }`}
+                  >
+                    {row.change !== 0
+                      ? `${isGain ? '+' : ''}${formatCurrency(row.change)}`
+                      : '--'}
+                  </td>
+                  <td className="py-3 pr-2 text-right">
+                    {row.changePercent !== 0 ? (
+                      <Badge variant={isGain ? 'gain' : 'loss'}>
+                        {isGain ? (
+                          <TrendingUp className="h-3 w-3" />
+                        ) : (
+                          <TrendingDown className="h-3 w-3" />
+                        )}
+                        {formatPercent(row.changePercent)}
+                      </Badge>
+                    ) : (
+                      <span className="text-muted-foreground">--</span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </Card>
+  );
+}
+
+/* ─────────────────────────────────────────────────────────────────────────── */
+/*  Main stock detail page                                                    */
+/* ─────────────────────────────────────────────────────────────────────────── */
 
 export default function StockDetailPage() {
   const { ticker } = useParams<{ ticker: string }>();
@@ -361,6 +544,12 @@ export default function StockDetailPage() {
           </div>
         </Card>
       )}
+
+      {/* Peer Comparison */}
+      <PeerComparisonCard
+        currentSymbol={symbol}
+        currentSector={company?.marketSegment}
+      />
     </div>
   );
 }

@@ -45,7 +45,10 @@ export default function LoginPage() {
           category: data.category,
           role: data.role,
           status: data.status,
-          dseLinked: data.dseLinked,
+          dseLinked: data.dseLinked ?? false,
+          onboardingComplete: data.onboardingComplete ?? false,
+          investorProfile: data.investorProfile ?? undefined,
+          subscriptionTier: data.subscriptionTier ?? 'free',
         },
         data.token,
       );

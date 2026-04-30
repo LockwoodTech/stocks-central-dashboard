@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Outlet, useNavigate } from 'react-router-dom';
 import { Bell, Sun, Moon, X, ArrowRight } from 'lucide-react';
 import Sidebar from './Sidebar';
-import LiveTicker from '@/components/LiveTicker';
+import TickerBar from './TickerBar';
 import { useAuthStore } from '@/store/auth';
 import { useThemeStore } from '@/store/theme';
 
@@ -20,7 +20,7 @@ export default function Layout() {
 
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Live Ticker */}
-        <LiveTicker />
+        <TickerBar />
 
         {/* Top Bar */}
         <header className="flex h-16 shrink-0 items-center justify-end border-b border-border bg-card px-4 md:px-6">
