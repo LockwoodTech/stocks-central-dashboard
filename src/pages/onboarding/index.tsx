@@ -2,6 +2,8 @@ import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { TrendingUp, Link2, Eye, EyeOff, CheckCircle } from 'lucide-react';
 import { updateInvestorProfile, linkDse } from '@/api/auth';
+import DseOtpForm from '@/components/dse/DseOtpForm';
+import { readDseError } from '@/utils/dseError';
 import { useAuthStore } from '@/store/auth';
 import type {
   InvestorExperience,
@@ -71,6 +73,7 @@ function DseLinkStep({ onDone }: { onDone: () => void }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [linked, setLinked] = useState(false);
+  const [otp, setOtp] = useState<{ destination?: string } | null>(null);
 
   const handleLink = async () => {
     if (!dseUsername.trim() || !dsePassword.trim()) {
@@ -80,13 +83,19 @@ function DseLinkStep({ onDone }: { onDone: () => void }) {
     setError('');
     setLoading(true);
     try {
-      await linkDse({ dseUsername, dsePassword });
-      setDseLinked(true);
-      setLinked(true);
+      const result = await linkDse({ dseUsername, dsePassword });
+      setDsePassword('');
+      if (result?.otpRequired) {
+        // DSE sent a one-time code; the link is not complete until it is verified.
+        setOtp({ destination: result.otpDestination });
+      } else if (result?.dseLinked) {
+        setDseLinked(true);
+        setLinked(true);
+      } else {
+        setError('DSE did not confirm the link. Please try again.');
+      }
     } catch (err: unknown) {
-      const axiosErr = err as { response?: { data?: { message?: string; error?: string } }; message?: string };
-      const resp = axiosErr?.response?.data;
-      setError(resp?.error || resp?.message || axiosErr?.message || 'Failed to link DSE account.');
+      setError(readDseError(err, 'Failed to link DSE account.').message);
     } finally {
       setLoading(false);
     }
@@ -106,6 +115,20 @@ function DseLinkStep({ onDone }: { onDone: () => void }) {
           Go to Dashboard
         </Button>
       </div>
+    );
+  }
+
+  if (otp) {
+    return (
+      <DseOtpForm
+        destination={otp.destination}
+        onVerified={() => {
+          setOtp(null);
+          setDseLinked(true);
+          setLinked(true);
+        }}
+        onCancel={() => setOtp(null)}
+      />
     );
   }
 
@@ -153,7 +176,7 @@ function DseLinkStep({ onDone }: { onDone: () => void }) {
       )}
 
       <p className="text-xs text-muted-foreground">
-        Your credentials are used only to authenticate with DSE and are stored securely encrypted. We never share them.
+        Your DSE password is used once to log in to DSE and is never stored. We keep only an encrypted DSE session.
       </p>
 
       <div className="flex gap-3">

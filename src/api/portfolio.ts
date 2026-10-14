@@ -43,3 +43,18 @@ export async function getChildHoldings(csdAccount: string): Promise<DseHolding[]
   );
   return response.data.data ?? [];
 }
+
+export interface PerformancePoint {
+  month: string;
+  label: string;
+  value: number;
+  pricedPositions: number;
+}
+
+/** Current stock positions valued at each month end, from stored daily prices. */
+export async function getPortfolioPerformance(months = 12): Promise<{ series: PerformancePoint[]; positions: number }> {
+  const response = await apiClient.get<ApiResponse<{ series: PerformancePoint[]; positions: number }>>(
+    `/portfolio/performance?months=${months}`,
+  );
+  return response.data.data;
+}

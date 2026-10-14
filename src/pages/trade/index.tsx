@@ -1,3 +1,5 @@
+import { dseEmptyMessage } from '@/utils/dseError';
+import { useAuthStore } from '@/store/auth';
 import { useState, useMemo, type FormEvent } from 'react';
 import { ChevronDown, ChevronUp, Clock, ArrowUpDown, Building2 } from 'lucide-react';
 import Card, { CardHeader, CardTitle } from '@/components/ui/Card';
@@ -36,9 +38,10 @@ function getOrderStatus(order: { status: string; createdAt: string }) {
 }
 
 export default function TradePage() {
-  const { data: orders, isLoading: ordersLoading } = useDseOrders();
+  const { data: orders, isLoading: ordersLoading, error: ordersError } = useDseOrders();
   const { data: companies } = useCompanies();
-  const { data: investorProfile, isLoading: profileLoading } = useInvestorProfile();
+  const { data: investorProfile, isLoading: profileLoading, error: profileError } = useInvestorProfile();
+  const dseStatus = useAuthStore((s) => s.dseStatus);
 
   const [side, setSide] = useState<'buy' | 'sell'>('buy');
   const [selectedStock, setSelectedStock] = useState('');
@@ -48,6 +51,8 @@ export default function TradePage() {
   const [expandedOrder, setExpandedOrder] = useState<number | null>(null);
 
   const brokers = investorProfile?.brokers ?? [];
+  const brokerKey = (b: { id?: number | string; uid?: string; code?: string; name?: string }) => String(b.id ?? b.uid ?? b.code ?? b.name ?? '');
+  const brokerName = (b: { name?: string; shortName?: string; code?: string; tradeCode?: string }) => b.name || b.shortName || b.code || b.tradeCode || 'Broker';
 
   const totalCost = useMemo(() => {
     const q = parseFloat(quantity) || 0;
@@ -57,8 +62,9 @@ export default function TradePage() {
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault();
-    const brokerName = brokers.find(b => String(b.id) === selectedBroker)?.name || selectedBroker;
-    alert(`Order submitted: ${side.toUpperCase()} ${quantity} shares of ${selectedStock} at ${formatCurrency(parseFloat(price))} via ${brokerName}`);
+    const chosen = brokers.find((b) => brokerKey(b) === selectedBroker);
+    const chosenBroker = chosen ? brokerName(chosen) : selectedBroker;
+    alert(`Order submitted: ${side.toUpperCase()} ${quantity} shares of ${selectedStock} at ${formatCurrency(parseFloat(price))} via ${chosenBroker}`);
   };
 
   return (
@@ -72,7 +78,7 @@ export default function TradePage() {
       {brokers.length > 0 && (
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
           {brokers.map((broker) => (
-            <Card key={broker.id}>
+            <Card key={brokerKey(broker)}>
               <div className="flex items-center gap-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
                   <Building2 className="h-5 w-5 text-primary" />
@@ -152,14 +158,16 @@ export default function TradePage() {
                 >
                   <option value="">Select your broker</option>
                   {brokers.map((b) => (
-                    <option key={b.id} value={String(b.id)}>
-                      {b.name}{b.code ? ` (${b.code})` : ''}
+                    <option key={brokerKey(b)} value={brokerKey(b)}>
+                      {brokerName(b)}{b.code ? ` (${b.code})` : ''}
                     </option>
                   ))}
                 </select>
               ) : (
                 <p className="rounded-lg border border-border bg-muted px-3 py-2 text-sm text-muted-foreground">
-                  No brokers found. Link your DSE account first.
+                  {brokers.length === 0 && dseStatus === 'LINKED' && !profileError
+                    ? 'No broker is linked to your DSE account.'
+                    : dseEmptyMessage(dseStatus, profileError, 'brokers')}
                 </p>
               )}
             </div>
@@ -323,7 +331,7 @@ export default function TradePage() {
                 ) : (
                   <tr>
                     <td colSpan={7} className="py-8 text-center text-muted-foreground">
-                      No orders found. Link your DSE account to see order history.
+                      {dseEmptyMessage(dseStatus, ordersError, 'orders')}
                     </td>
                   </tr>
                 )}
