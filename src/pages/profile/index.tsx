@@ -27,6 +27,8 @@ import Badge from '@/components/ui/Badge';
 import { useAuthStore } from '@/store/auth';
 import { useThemeStore } from '@/store/theme';
 import { updatePersonalInfo, changePassword, linkDse, unlinkDse } from '@/api/auth';
+import DseOtpForm from '@/components/dse/DseOtpForm';
+import { readDseError } from '@/utils/dseError';
 import { useSmsBalance, useSmsPackages, usePurchaseSmsCredits } from '@/hooks/useSmsCredits';
 import { useReferralCode, useReferralStats } from '@/hooks/useReferral';
 import { useNavigate } from 'react-router-dom';
@@ -62,6 +64,7 @@ export default function ProfilePage() {
   const user = useAuthStore((s) => s.user);
   const updateUser = useAuthStore((s) => s.updateUser);
   const setDseLinked = useAuthStore((s) => s.setDseLinked);
+  const dseStatus = useAuthStore((s) => s.dseStatus);
   const logout = useAuthStore((s) => s.logout);
   const { theme, toggleTheme } = useThemeStore();
   const navigate = useNavigate();
@@ -91,6 +94,7 @@ export default function ProfilePage() {
   const [dseLoading, setDseLoading] = useState(false);
   const [dseError, setDseError] = useState('');
   const [unlinkLoading, setUnlinkLoading] = useState(false);
+  const [dseOtp, setDseOtp] = useState<{ destination?: string } | null>(null);
 
   const handleUpdateInfo = async (e: FormEvent) => {
     e.preventDefault();
@@ -144,12 +148,20 @@ export default function ProfilePage() {
     setDseError('');
     setDseLoading(true);
     try {
-      await linkDse({ dseUsername, dsePassword });
-      setDseLinked(true);
-      setDseUsername('');
+      const result = await linkDse({ dseUsername, dsePassword });
       setDsePassword('');
-    } catch {
-      setDseError('Failed to link DSE account. Check your credentials.');
+      if (result?.otpRequired) {
+        // DSE sent a one-time code; the link is not complete until it is verified.
+        setDseOtp({ destination: result.otpDestination });
+      } else if (result?.dseLinked) {
+        setDseLinked(true);
+        if (result.csdAccount) updateUser({ csdAccount: result.csdAccount });
+        setDseUsername('');
+      } else {
+        setDseError('DSE did not confirm the link. Please try again.');
+      }
+    } catch (err) {
+      setDseError(readDseError(err, 'Failed to link DSE account. Check your credentials.').message);
     } finally {
       setDseLoading(false);
     }
@@ -337,14 +349,29 @@ export default function ProfilePage() {
         <Card>
           <CardHeader>
             <CardTitle>DSE Account</CardTitle>
-            {user?.dseLinked ? (
+            {dseStatus === 'RECONNECT_REQUIRED' ? (
+              <Badge variant="loss">Reconnect needed</Badge>
+            ) : dseOtp ? (
+              <Badge variant="neutral">Code pending</Badge>
+            ) : user?.dseLinked ? (
               <Badge variant="gain">Linked</Badge>
             ) : (
               <Badge variant="neutral">Not Linked</Badge>
             )}
           </CardHeader>
 
-          {user?.dseLinked ? (
+          {dseOtp ? (
+            <DseOtpForm
+              destination={dseOtp.destination}
+              onVerified={(result) => {
+                setDseOtp(null);
+                setDseLinked(true);
+                setDseUsername('');
+                if (result.csdAccount) updateUser({ csdAccount: result.csdAccount });
+              }}
+              onCancel={() => setDseOtp(null)}
+            />
+          ) : user?.dseLinked && dseStatus !== 'RECONNECT_REQUIRED' ? (
             <div className="space-y-4">
               {user.csdAccount && (
                 <InfoRow icon={Hash} label="CDS Account" value={user.csdAccount} />
@@ -370,7 +397,9 @@ export default function ProfilePage() {
           ) : (
             <form onSubmit={handleLinkDse} className="space-y-4">
               <p className="text-sm text-muted-foreground">
-                Link your DSE account to view your real portfolio, orders, and investor profile.
+                {dseStatus === 'RECONNECT_REQUIRED'
+                  ? 'Your DSE session has expired. Log in to DSE again to keep your portfolio and orders up to date.'
+                  : 'Link your DSE account to view your real portfolio, orders, and investor profile.'}
               </p>
 
               <div className="space-y-1">
@@ -414,7 +443,7 @@ export default function ProfilePage() {
 
               <Button type="submit" size="sm" loading={dseLoading}>
                 <Link2 className="h-4 w-4" />
-                Link Account
+                {dseStatus === 'RECONNECT_REQUIRED' ? 'Reconnect DSE' : 'Link Account'}
               </Button>
             </form>
           )}

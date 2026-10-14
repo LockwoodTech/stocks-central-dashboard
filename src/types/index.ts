@@ -18,6 +18,7 @@ export interface User {
   role: string;
   status: string;
   dseLinked: boolean;
+  dseStatus?: DseStatus;
   csdAccount?: string;
   nin?: string;
   investorProfile?: InvestorProfile;
@@ -56,17 +57,28 @@ export interface LinkDseRequest {
   dsePassword: string;
 }
 
+/** Where a user's DSE link stands, as reported by the API. */
+export type DseStatus = 'NOT_LINKED' | 'OTP_PENDING' | 'LINKED' | 'RECONNECT_REQUIRED';
+
 export interface LinkDseResponse {
   dseLinked: boolean;
-  csdAccount: string;
-  investorName: string;
-  brokers: DseBroker[];
+  dseStatus?: DseStatus;
+  /** True when DSE sent a one-time code; finish with verifyDseOtp. */
+  otpRequired?: boolean;
+  otpDestination?: string;
+  otpChannel?: string;
+  csdAccount?: string;
+  investorName?: string;
+  brokers?: DseBroker[];
 }
 
 export interface DseBroker {
-  id: number;
-  name: string;
+  id?: number | string;
+  uid?: string;
+  name?: string;
+  shortName?: string;
   code?: string;
+  tradeCode?: string;
 }
 
 // ── Portfolio / Holdings ──
@@ -83,6 +95,7 @@ export interface DseHolding {
   marketValue: number;
   gainLoss: number;
   gainLossPercent: number;
+  invested?: number;
   volume?: number;
   bid?: number;
   ask?: number;
@@ -238,6 +251,8 @@ export interface FavoriteStock {
 
 // ── Stock Portfolio (manual/off-platform) ──
 export interface StockPortfolioEntry {
+  /** DSE rows are written by the holdings sync; anything else was entered by hand. */
+  source?: 'MANUAL' | 'DSE';
   _id: string;
   id: string;
   company: string;

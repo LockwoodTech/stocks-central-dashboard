@@ -11,6 +11,12 @@ export async function linkDse(data: LinkDseRequest): Promise<LinkDseResponse> {
   return response.data.data;
 }
 
+/** Second step of linking, when DSE sent a one-time code. */
+export async function verifyDseOtp(otp: string): Promise<LinkDseResponse> {
+  const response = await apiClient.post<ApiResponse<LinkDseResponse>>('/auth/link-dse/verify', { otp });
+  return response.data.data;
+}
+
 export async function unlinkDse(): Promise<{ dseLinked: boolean }> {
   const response = await apiClient.post<ApiResponse<{ dseLinked: boolean }>>('/auth/unlink-dse');
   return response.data.data;

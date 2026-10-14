@@ -1,3 +1,5 @@
+import { dseEmptyMessage } from '@/utils/dseError';
+import { useAuthStore } from '@/store/auth';
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import {
@@ -61,9 +63,14 @@ export default function PortfolioPage() {
   const [showGoalModal, setShowGoalModal] = useState(false);
 
   // Data hooks
-  const { data: holdings, isLoading: holdingsLoading } = useDseHoldings();
+  const { data: holdings, isLoading: holdingsLoading, error: holdingsError } = useDseHoldings();
+  const dseStatus = useAuthStore((s) => s.dseStatus);
   const { data: children } = useChildAccounts();
-  const { data: manualPortfolio } = useStockPortfolio();
+  const { data: storedPortfolio } = useStockPortfolio();
+  // The holdings sync stores DSE positions in the same table as hand-entered ones. Keep them
+  // apart so DSE positions are not counted twice and the off-platform list stays off-platform.
+  const storedDse = useMemo(() => (storedPortfolio ?? []).filter((e) => e.source === 'DSE'), [storedPortfolio]);
+  const manualPortfolio = useMemo(() => (storedPortfolio ?? []).filter((e) => e.source !== 'DSE'), [storedPortfolio]);
   const { data: companies } = useCompanies();
   const { data: fundPortfolio, isLoading: fundsLoading } = useFundPortfolio();
   useFunds();
@@ -90,13 +97,20 @@ export default function PortfolioPage() {
     const stockInvested = manualPortfolio?.reduce((s, e) => s + e.invested, 0) ?? 0;
     const fundValue = fundPortfolio?.reduce((s, e) => s + e.currentValue, 0) ?? 0;
     const fundInvested = fundPortfolio?.reduce((s, e) => s + e.invested, 0) ?? 0;
-    const dseValue = holdings?.reduce((s, h) => s + (h.marketValue ?? 0), 0) ?? 0;
+    // Live DSE holdings when DSE answered; otherwise the last synced copy.
+    const dseValue = holdings
+      ? holdings.reduce((s, h) => s + (h.marketValue ?? 0), 0)
+      : storedDse.reduce((s, e) => s + (e.currentValue ?? 0), 0);
+    const dseInvested = holdings
+      ? holdings.reduce((s, h) => s + (h.invested ?? (h.averageCost ?? 0) * (h.shares ?? 0)), 0)
+      : storedDse.reduce((s, e) => s + (e.invested ?? 0), 0);
     const totalValue = stockValue + fundValue + dseValue;
-    const totalInvested = stockInvested + fundInvested;
+    const totalInvested = stockInvested + fundInvested + dseInvested;
     const totalReturn = totalInvested > 0 ? ((totalValue - totalInvested) / totalInvested) * 100 : 0;
-    const holdingsCount = (manualPortfolio?.length ?? 0) + (fundPortfolio?.length ?? 0) + (holdings?.length ?? 0);
+    const holdingsCount =
+      (manualPortfolio?.length ?? 0) + (fundPortfolio?.length ?? 0) + (holdings?.length ?? storedDse.length);
     return { totalValue, totalInvested, totalReturn, holdingsCount };
-  }, [manualPortfolio, fundPortfolio, holdings]);
+  }, [manualPortfolio, storedDse, fundPortfolio, holdings]);
 
   // Filtered transactions
   const filteredTx = useMemo(() => {
@@ -220,7 +234,7 @@ export default function PortfolioPage() {
 
       {/* Portfolio Analytics */}
       <PortfolioAnalytics
-        stockPortfolio={manualPortfolio ?? []}
+        stockPortfolio={storedPortfolio ?? []}
         fundPortfolio={fundPortfolio ?? []}
         transactions={transactions ?? []}
         companies={companies ?? []}
@@ -362,7 +376,7 @@ export default function PortfolioPage() {
                   ) : (
                     <tr>
                       <td colSpan={6} className="px-5 py-8 text-center text-muted-foreground">
-                        No DSE holdings found. Link your DSE account to view holdings.
+                        {dseEmptyMessage(dseStatus, holdingsError, 'DSE holdings')}
                       </td>
                     </tr>
                   )}

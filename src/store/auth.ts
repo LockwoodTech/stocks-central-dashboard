@@ -1,14 +1,16 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { User, InvestorProfile, SubscriptionTier } from '@/types';
+import type { User, InvestorProfile, SubscriptionTier, DseStatus } from '@/types';
 
 interface AuthState {
   user: User | null;
   token: string | null;
   isAuthenticated: boolean;
   dseLinked: boolean;
+  dseStatus: DseStatus;
   setAuth: (user: User, token: string) => void;
   setDseLinked: (linked: boolean) => void;
+  setDseStatus: (status: DseStatus) => void;
   setInvestorProfile: (profile: InvestorProfile) => void;
   setSubscriptionTier: (tier: SubscriptionTier) => void;
   setOnboardingComplete: (complete: boolean) => void;
@@ -23,6 +25,7 @@ export const useAuthStore = create<AuthState>()(
       token: null,
       isAuthenticated: false,
       dseLinked: false,
+      dseStatus: 'NOT_LINKED',
 
       setAuth: (user: User, token: string) =>
         set({
@@ -30,13 +33,21 @@ export const useAuthStore = create<AuthState>()(
           token,
           isAuthenticated: true,
           dseLinked: user.dseLinked ?? false,
+          dseStatus: user.dseStatus ?? (user.dseLinked ? 'LINKED' : 'NOT_LINKED'),
         }),
 
       setDseLinked: (linked: boolean) =>
-        set((state) => ({
-          dseLinked: linked,
-          user: state.user ? { ...state.user, dseLinked: linked } : null,
-        })),
+        set((state) => {
+          const dseStatus: DseStatus = linked ? 'LINKED' : 'NOT_LINKED';
+          return { dseLinked: linked, dseStatus, user: state.user ? { ...state.user, dseLinked: linked, dseStatus } : null };
+        }),
+
+      setDseStatus: (dseStatus: DseStatus) =>
+        set((state) => {
+          // RECONNECT_REQUIRED keeps the link, so the last synced portfolio stays visible.
+          const dseLinked = dseStatus === 'LINKED' || dseStatus === 'RECONNECT_REQUIRED';
+          return { dseStatus, dseLinked, user: state.user ? { ...state.user, dseStatus, dseLinked } : null };
+        }),
 
       setInvestorProfile: (profile: InvestorProfile) =>
         set((state) => ({
@@ -64,6 +75,7 @@ export const useAuthStore = create<AuthState>()(
           token: null,
           isAuthenticated: false,
           dseLinked: false,
+          dseStatus: 'NOT_LINKED',
         }),
     }),
     {

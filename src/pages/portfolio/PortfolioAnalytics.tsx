@@ -1,4 +1,6 @@
 import { useState, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { getPortfolioPerformance } from '@/api/portfolio';
 import {
   AreaChart,
   Area,
@@ -177,7 +179,21 @@ export default function PortfolioAnalytics({
   /*  1. Performance                                                    */
   /* ------------------------------------------------------------------ */
 
+  // Without recorded transactions (typical for DSE-linked users), chart what the current
+  // positions were worth at each month end instead.
+  const hasTransactions = (transactions ?? []).length > 0;
+  const { data: valueHistory } = useQuery({
+    queryKey: ['portfolio-performance', 12],
+    queryFn: () => getPortfolioPerformance(12),
+    enabled: !hasTransactions && (stockPortfolio ?? []).length > 0,
+    staleTime: 10 * 60 * 1000,
+  });
+
   const performanceData = useMemo(() => {
+    if (!hasTransactions) {
+      const series = (valueHistory?.series ?? []).filter((p) => p.value > 0);
+      return series.map((p) => ({ date: p.label, value: p.value }));
+    }
     const txs = [...(transactions ?? [])].sort(
       (a, b) => new Date(a.executionDate).getTime() - new Date(b.executionDate).getTime(),
     );
@@ -210,7 +226,7 @@ export default function PortfolioAnalytics({
     }
 
     return points;
-  }, [transactions, totalValue]);
+  }, [transactions, totalValue, hasTransactions, valueHistory]);
 
   /* ------------------------------------------------------------------ */
   /*  2. Top / Bottom                                                   */
@@ -399,6 +415,11 @@ export default function PortfolioAnalytics({
     }
     return (
       <div className="space-y-4">
+        {!hasTransactions && (
+          <p className="text-xs text-muted-foreground">
+            Value of your current holdings at each month end. Add transactions to see invested amount and returns over time.
+          </p>
+        )}
         <ChartWrapper>
           <ResponsiveContainer width="100%" height={300}>
             <AreaChart data={performanceData}>
